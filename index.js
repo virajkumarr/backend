@@ -7,70 +7,140 @@ const cors = require("cors");
 const User = require("./model/userModel")
 const paymentModel = require("./model/paymentModel")
 
+// Middleware
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-app.use(cors());
-cors()
-DbConnection()
+app.use(cors({
+    origin: 'http://localhost:5173', // Your React app's URL
+    credentials: true
+}));
+
+// Database Connection
+DbConnection();
+
+// Routes
 app.get("/", (req, res) => {
     res.send("Hello World");
 });
+
 app.post("/user/create", async function(req, res) {
     try {
         const { fullname, email, password, mobile } = req.body;
+        
+        // Validation
         if (!fullname || !email || !password || !mobile) {
-            return res.status(400).json({ message: "All fields are required" });
+            return res.status(400).json({ 
+                success: false,
+                message: "All fields are required" 
+            });
         }
 
-      const existUser = await User.findOne({ email });
+        // Check if user exists
+        const existUser = await User.findOne({ email });
         if (existUser) {
-            return res.status(400).json({ message: "User already exists" });
+            return res.status(400).json({ 
+                success: false,
+                message: "User already exists" 
+            });
         }
-        const user = await User.create({ fullname, email, password, mobile });
 
-        res.status(201).json({ message: "User created successfully", user });
+        // Create new user
+        const user = await User.create({ 
+            fullname, 
+            email, 
+            password, 
+            mobile 
+        });
+
+        res.status(201).json({ 
+            success: true,
+            message: "User created successfully", 
+            user: {
+                fullname: user.fullname,
+                email: user.email,
+                mobile: user.mobile
+            }
+        });
     } catch (err) {
-        res.status(500).json({ error: err.message });
+        console.error('User creation error:', err);
+        res.status(500).json({ 
+            success: false,
+            message: "Server error occurred",
+            error: err.message 
+        });
     }
 });
 
-app.get("/getalluser", function(req, res){
-    User.find().then(function(users){
-        res.json(users);
-        }).catch(function(err){
-            res.status(500).json({error: err.message});
-            });
-        
-})
-
+app.get("/getalluser", async function(req, res) {
+    try {
+        const users = await User.find().select('-password');
+        res.json({
+            success: true,
+            users
+        });
+    } catch (err) {
+        console.error('Get users error:', err);
+        res.status(500).json({ 
+            success: false,
+            message: "Failed to fetch users",
+            error: err.message 
+        });
+    }
+});
 
 // Payment Logical part
-
 app.post("/payment/create", async function(req, res) {
     try {
-        const { username,email,taxfileid,amount, paymentdate } = req.body;
-        if (!username || !email || !taxfileid || !amount ||!paymentdate) {
-            return res.status(400).json({ message: "All fields are required" });
+        const { username, email, taxfileid, amount, paymentdate } = req.body;
+        if (!username || !email || !taxfileid || !amount || !paymentdate) {
+            return res.status(400).json({ 
+                success: false,
+                message: "All fields are required" 
+            });
         }
 
-        const payment = await paymentModel.create({  username,email,taxfileid,amount, paymentdate });
+        const payment = await paymentModel.create({ 
+            username, 
+            email, 
+            taxfileid, 
+            amount, 
+            paymentdate 
+        });
 
-        res.status(201).json({ message: "your payment done", payment });
+        res.status(201).json({ 
+            success: true,
+            message: "Payment successful", 
+            payment 
+        });
     } catch (err) {
-        res.status(500).json({ error: err.message });
+        console.error('Payment creation error:', err);
+        res.status(500).json({ 
+            success: false,
+            message: "Payment failed",
+            error: err.message 
+        });
     }
 });
 
+app.get("/getfetch/payment", async function(req, res) {
+    try {
+        const payments = await paymentModel.find();
+        res.json({
+            success: true,
+            payments
+        });
+    } catch (err) {
+        console.error('Get payments error:', err);
+        res.status(500).json({ 
+            success: false,
+            message: "Failed to fetch payments",
+            error: err.message 
+        });
+    }
+});
+
+// Start server
 app.listen(port, () => {
     console.log(`Server is running on http://localhost:${port}`);
 });
-
-app.get("/getfetch/payment", function(req, res){
-    paymentModel.find().then(function(payment){
-        res.json(payment);
-        }).catch(function(err){
-            res.status(500).json({error: err.message});
-            });
-        
-})
 
