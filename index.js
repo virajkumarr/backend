@@ -6,6 +6,7 @@ const port = 3000;
 const cors = require("cors");
 const User = require("./model/userModel")
 const paymentModel = require("./model/paymentModel")
+const AdminCredential = require("./model/adminCredentialModel")
 
 // Middleware
 app.use(express.json());
@@ -134,6 +135,218 @@ app.get("/getfetch/payment", async function(req, res) {
         res.status(500).json({ 
             success: false,
             message: "Failed to fetch payments",
+            error: err.message 
+        });
+    }
+});
+
+// Contact form submission
+app.post("/contact/submit", async function(req, res) {
+    try {
+        const { firstName, lastName, email, phone, subject, message, date } = req.body;
+        
+        // Validation
+        if (!email || !message) {
+            return res.status(400).json({ 
+                success: false,
+                message: "Email and message are required" 
+            });
+        }
+
+        // Here you would typically save to a database
+        // For now, we'll just return success
+        res.status(201).json({ 
+            success: true,
+            message: "Message sent successfully" 
+        });
+    } catch (err) {
+        console.error('Contact submission error:', err);
+        res.status(500).json({ 
+            success: false,
+            message: "Failed to send message",
+            error: err.message 
+        });
+    }
+});
+
+// Get contact form submissions
+app.get("/contact/submissions", async function(req, res) {
+    try {
+        // Here you would typically fetch from a database
+        // For now, we'll return an empty array
+        res.json({
+            success: true,
+            submissions: []
+        });
+    } catch (err) {
+        console.error('Get contact submissions error:', err);
+        res.status(500).json({ 
+            success: false,
+            message: "Failed to fetch submissions",
+            error: err.message 
+        });
+    }
+});
+
+// FAQ routes
+app.get("/faq/questions", async function(req, res) {
+    try {
+        // Here you would typically fetch from a database
+        // For now, we'll return an empty array
+        res.json({
+            success: true,
+            questions: []
+        });
+    } catch (err) {
+        console.error('Get FAQ questions error:', err);
+        res.status(500).json({ 
+            success: false,
+            message: "Failed to fetch questions",
+            error: err.message 
+        });
+    }
+});
+
+app.post("/faq/reply/:id", async function(req, res) {
+    try {
+        const { id } = req.params;
+        const { reply } = req.body;
+        
+        if (!reply) {
+            return res.status(400).json({ 
+                success: false,
+                message: "Reply is required" 
+            });
+        }
+
+        // Here you would typically update a database
+        // For now, we'll just return success
+        res.json({
+            success: true,
+            message: "Reply sent successfully"
+        });
+    } catch (err) {
+        console.error('Reply to FAQ error:', err);
+        res.status(500).json({ 
+            success: false,
+            message: "Failed to send reply",
+            error: err.message 
+        });
+    }
+});
+
+app.delete("/faq/delete/:id", async function(req, res) {
+    try {
+        const { id } = req.params;
+        
+        // Here you would typically delete from a database
+        // For now, we'll just return success
+        res.json({
+            success: true,
+            message: "Question deleted successfully"
+        });
+    } catch (err) {
+        console.error('Delete FAQ question error:', err);
+        res.status(500).json({ 
+            success: false,
+            message: "Failed to delete question",
+            error: err.message 
+        });
+    }
+});
+
+// Admin Credentials routes
+app.post("/admin/credentials/create", async function(req, res) {
+    try {
+        const { username, password, email, role } = req.body;
+        
+        // Validation
+        if (!username || !password || !email) {
+            return res.status(400).json({ 
+                success: false,
+                message: "Username, password, and email are required" 
+            });
+        }
+
+        // Check if admin already exists
+        const existingAdmin = await AdminCredential.findOne({ 
+            $or: [{ username }, { email }] 
+        });
+        
+        if (existingAdmin) {
+            return res.status(400).json({ 
+                success: false,
+                message: "Admin with this username or email already exists" 
+            });
+        }
+
+        // Create new admin
+        const admin = await AdminCredential.create({ 
+            username, 
+            password, 
+            email, 
+            role: role || "admin" 
+        });
+
+        res.status(201).json({ 
+            success: true,
+            message: "Admin credential created successfully",
+            admin: {
+                id: admin._id,
+                username: admin.username,
+                email: admin.email,
+                role: admin.role
+            }
+        });
+    } catch (err) {
+        console.error('Admin credential creation error:', err);
+        res.status(500).json({ 
+            success: false,
+            message: "Failed to create admin credential",
+            error: err.message 
+        });
+    }
+});
+
+app.get("/admin/credentials", async function(req, res) {
+    try {
+        const admins = await AdminCredential.find().select('-password');
+        res.json({
+            success: true,
+            admins
+        });
+    } catch (err) {
+        console.error('Get admin credentials error:', err);
+        res.status(500).json({ 
+            success: false,
+            message: "Failed to fetch admin credentials",
+            error: err.message 
+        });
+    }
+});
+
+app.delete("/admin/credentials/:id", async function(req, res) {
+    try {
+        const { id } = req.params;
+        
+        const admin = await AdminCredential.findByIdAndDelete(id);
+        
+        if (!admin) {
+            return res.status(404).json({ 
+                success: false,
+                message: "Admin credential not found" 
+            });
+        }
+        
+        res.json({
+            success: true,
+            message: "Admin credential deleted successfully"
+        });
+    } catch (err) {
+        console.error('Delete admin credential error:', err);
+        res.status(500).json({ 
+            success: false,
+            message: "Failed to delete admin credential",
             error: err.message 
         });
     }
