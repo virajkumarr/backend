@@ -7,6 +7,8 @@ const cors = require("cors");
 const User = require("./model/userModel")
 const paymentModel = require("./model/paymentModel")
 const AdminCredential = require("./model/adminCredentialModel")
+const ContactSubmission = require("./model/contactSubmissionModel")
+const FAQQuestion = require("./model/faqQuestionModel")
 
 // Middleware
 app.use(express.json());
@@ -37,7 +39,7 @@ app.post("/user/create", async function(req, res) {
         }
 
         // Check if user exists
-        const existUser = await User.findOne({ email });
+      const existUser = await User.findOne({ email });
         if (existUser) {
             return res.status(400).json({ 
                 success: false,
@@ -153,11 +155,22 @@ app.post("/contact/submit", async function(req, res) {
             });
         }
 
-        // Here you would typically save to a database
-        // For now, we'll just return success
+        // Create new contact submission
+        const contact = await ContactSubmission.create({
+            firstName,
+            lastName,
+            email,
+            phone,
+            subject,
+            message,
+            date: date || new Date(),
+            status: 'pending'
+        });
+
         res.status(201).json({ 
             success: true,
-            message: "Message sent successfully" 
+            message: "Message sent successfully",
+            contact
         });
     } catch (err) {
         console.error('Contact submission error:', err);
@@ -172,11 +185,10 @@ app.post("/contact/submit", async function(req, res) {
 // Get contact form submissions
 app.get("/contact/submissions", async function(req, res) {
     try {
-        // Here you would typically fetch from a database
-        // For now, we'll return an empty array
+        const submissions = await ContactSubmission.find().sort({ date: -1 });
         res.json({
             success: true,
-            submissions: []
+            submissions
         });
     } catch (err) {
         console.error('Get contact submissions error:', err);
@@ -191,11 +203,10 @@ app.get("/contact/submissions", async function(req, res) {
 // FAQ routes
 app.get("/faq/questions", async function(req, res) {
     try {
-        // Here you would typically fetch from a database
-        // For now, we'll return an empty array
+        const questions = await FAQQuestion.find().sort({ date: -1 });
         res.json({
             success: true,
-            questions: []
+            questions
         });
     } catch (err) {
         console.error('Get FAQ questions error:', err);
@@ -219,11 +230,27 @@ app.post("/faq/reply/:id", async function(req, res) {
             });
         }
 
-        // Here you would typically update a database
-        // For now, we'll just return success
+        const question = await FAQQuestion.findByIdAndUpdate(
+            id,
+            { 
+                reply,
+                repliedAt: new Date(),
+                status: 'replied'
+            },
+            { new: true }
+        );
+
+        if (!question) {
+            return res.status(404).json({
+                success: false,
+                message: "Question not found"
+            });
+        }
+
         res.json({
             success: true,
-            message: "Reply sent successfully"
+            message: "Reply sent successfully",
+            question
         });
     } catch (err) {
         console.error('Reply to FAQ error:', err);
@@ -239,8 +266,15 @@ app.delete("/faq/delete/:id", async function(req, res) {
     try {
         const { id } = req.params;
         
-        // Here you would typically delete from a database
-        // For now, we'll just return success
+        const question = await FAQQuestion.findByIdAndDelete(id);
+        
+        if (!question) {
+            return res.status(404).json({
+                success: false,
+                message: "Question not found"
+            });
+        }
+
         res.json({
             success: true,
             message: "Question deleted successfully"
@@ -250,6 +284,48 @@ app.delete("/faq/delete/:id", async function(req, res) {
         res.status(500).json({ 
             success: false,
             message: "Failed to delete question",
+            error: err.message 
+        });
+    }
+});
+
+// Convert contact submission to FAQ question
+app.post("/faq/convert/:contactId", async function(req, res) {
+    try {
+        const { contactId } = req.params;
+        
+        // Find the contact submission
+        const contact = await ContactSubmission.findById(contactId);
+        if (!contact) {
+            return res.status(404).json({
+                success: false,
+                message: "Contact submission not found"
+            });
+        }
+
+        // Create new FAQ question from contact
+        const question = await FAQQuestion.create({
+            email: contact.email,
+            subject: contact.subject,
+            message: contact.message,
+            date: contact.date,
+            status: 'pending'
+        });
+
+        // Update contact status
+        contact.status = 'converted';
+        await contact.save();
+
+        res.json({
+            success: true,
+            message: "Contact converted to FAQ question successfully",
+            question
+        });
+    } catch (err) {
+        console.error('Convert contact to FAQ error:', err);
+        res.status(500).json({ 
+            success: false,
+            message: "Failed to convert contact to FAQ",
             error: err.message 
         });
     }
