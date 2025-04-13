@@ -428,6 +428,56 @@ app.delete("/admin/credentials/:id", async function(req, res) {
     }
 });
 
+app.post("/user/login", async function(req, res) {
+    try {
+        const { email, password } = req.body;
+        
+        // Validation
+        if (!email || !password) {
+            return res.status(400).json({ 
+                success: false,
+                message: "Email and password are required" 
+            });
+        }
+
+        // Find user by email
+        const user = await User.findOne({ email });
+        if (!user) {
+            return res.status(401).json({ 
+                success: false,
+                message: "Invalid email or password" 
+            });
+        }
+
+        // Check password (in a real app, you should use bcrypt or similar)
+        if (user.password !== password) {
+            return res.status(401).json({ 
+                success: false,
+                message: "Invalid email or password" 
+            });
+        }
+
+        // Return success response with user data (excluding password)
+        res.status(200).json({ 
+            success: true,
+            message: "Login successful",
+            user: {
+                id: user._id,
+                fullname: user.fullname,
+                email: user.email,
+                mobile: user.mobile
+            }
+        });
+    } catch (err) {
+        console.error('Login error:', err);
+        res.status(500).json({ 
+            success: false,
+            message: "Server error occurred",
+            error: err.message 
+        });
+    }
+});
+
 // Start server
 app.listen(port, () => {
     console.log(`Server is running on http://localhost:${port}`);
