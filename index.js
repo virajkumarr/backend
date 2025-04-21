@@ -9,6 +9,7 @@ const paymentModel = require("./model/paymentModel")
 const AdminCredential = require("./model/adminCredentialModel")
 const ContactSubmission = require("./model/contactSubmissionModel")
 const FAQQuestion = require("./model/faqQuestionModel")
+const userRoutes = require("./routes/userRoutes")
 
 // Middleware
 app.use(express.json());
@@ -20,6 +21,9 @@ app.use(cors({
 
 // Database Connection
 DbConnection();
+
+// User routes
+app.use('/user', userRoutes);
 
 // Routes
 app.get("/", (req, res) => {
